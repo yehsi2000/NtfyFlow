@@ -36,7 +36,7 @@ class NotificationDispatcher(
         return ntfyRepository.sendNotification(message, priority, title, "telephone")
     }
 
-    suspend fun dispatchSmsNotification(phoneNumber: String, messageSnippet: String): Boolean {
+    suspend fun dispatchSmsNotification(phoneNumber: String, messageBody: String): Boolean {
         val settings = settingsRepository.appSettingsFlow.first()
         val contactName = try {
             contactRepository.getContactName(phoneNumber)
@@ -49,7 +49,7 @@ class NotificationDispatcher(
         } else {
             settings.smsPriority
         }
-        val fullMessage = "Message from $sender: $messageSnippet"
+        val fullMessage = "Message from $sender: $messageBody"
         return ntfyRepository.sendNotification(fullMessage, priority, "문자 수신: $sender", "message")
     }
 }

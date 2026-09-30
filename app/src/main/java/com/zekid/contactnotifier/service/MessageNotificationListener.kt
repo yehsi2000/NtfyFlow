@@ -1,7 +1,6 @@
 package com.zekid.contactnotifier.service
 
 import android.app.Notification
-import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -41,11 +40,20 @@ class MessageNotificationListener : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (sbn.packageName !in MESSAGE_PACKAGES) return
         val notification = sbn.notification
-        if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
+        if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) {
+            Log.d(TAG, "[DEBUG-NLS] Skipping group summary from ${sbn.packageName}")
+            return
+        }
 
         val extras = notification.extras ?: return
-        val (sender, body) = extractMessage(extras) ?: return
-        if (sender.isBlank() || body.isBlank()) return
+        val messages = try {
+            MessageNotificationParser.extractMessages(extras)
+        } catch (e: RuntimeException) {
+            Log.e(TAG, "[DEBUG-NLS] Cannot parse message notification from ${sbn.packageName}", e)
+            return
+        }
+        Log.d(TAG, "[DEBUG-NLS] package=${sbn.packageName}, messages=${messages.size}, keys=${extras.keySet().sorted()}")
+        if (messages.isEmpty()) return
 
         scope.launch {
             try {
@@ -53,58 +61,32 @@ class MessageNotificationListener : NotificationListenerService() {
                 val settingsRepository = SettingsRepository(appContext)
                 val settings = settingsRepository.appSettingsFlow.first()
 
-                if (!settings.notificationListenerEnabled) return@launch
+                if (!settings.notificationListenerEnabled) {
+                    Log.w(TAG, "[DEBUG-NLS] Chat+ / RCS forwarding is disabled in settings")
+                    return@launch
+                }
                 if (settings.ntfyTopic.isBlank()) {
                     Log.e(TAG, "[DEBUG-NLS] NTFY topic blank, skipping")
                     return@launch
                 }
 
                 val contactRepository = ContactRepository(appContext)
-                val senderNumber = resolveToNumber(contactRepository, sender)
-                val snippet = DispatchDeduper.snippetOf(body)
-
-                if (!DispatchDeduper.tryMark(senderNumber, snippet)) {
-                    Log.d(TAG, "[DEBUG-NLS] Duplicate of recently dispatched message, skipping")
-                    return@launch
-                }
-
-                Log.d(TAG, "[DEBUG-NLS] Dispatching message from $senderNumber")
                 val dispatcher = NotificationDispatcher(
                     contactRepository,
                     NtfyRepository(settingsRepository),
                     settingsRepository
                 )
-                dispatcher.dispatchSmsNotification(senderNumber, snippet)
+                for ((sender, body) in messages) {
+                    val senderNumber = resolveToNumber(contactRepository, sender)
+                    if (!DispatchDeduper.tryMark(senderNumber, body)) continue
+                    val success = dispatcher.dispatchSmsNotification(senderNumber, body)
+                    Log.d(TAG, "[DEBUG-NLS] Dispatch success=$success, bodyLength=${body.length}")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "[DEBUG-NLS] Error processing notification", e)
             }
         }
     }
-
-    @Suppress("DEPRECATION")
-    private fun extractMessage(extras: Bundle): Pair<String, String>? {
-        // MessagingStyle first: RCS/chat apps usually post this shape.
-        val messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
-            ?.mapNotNull { it as? Notification.MessagingStyle.Message }
-            ?.filter { !it.text.isNullOrBlank() }
-        val last = messages?.lastOrNull()
-        if (last != null) {
-            val sender = last.sender?.toString()?.ifBlank { null }
-                ?: conversationTitle(extras)
-                ?: return null
-            return sender to last.text.toString()
-        }
-
-        val sender = conversationTitle(extras) ?: return null
-        val body = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.ifBlank { null }
-            ?: extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.ifBlank { null }
-            ?: return null
-        return sender to body
-    }
-
-    private fun conversationTitle(extras: Bundle): String? =
-        extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString()?.ifBlank { null }
-            ?: extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.ifBlank { null }
 
     private suspend fun resolveToNumber(
         contactRepository: ContactRepository,

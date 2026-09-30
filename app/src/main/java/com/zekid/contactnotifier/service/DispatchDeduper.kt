@@ -10,13 +10,13 @@ object DispatchDeduper {
     private val recent = LinkedHashMap<String, Long>()
 
     @Synchronized
-    fun tryMark(sender: String, snippet: String): Boolean {
+    fun tryMark(sender: String, body: String): Boolean {
         val now = System.currentTimeMillis()
         val iterator = recent.entries.iterator()
         while (iterator.hasNext()) {
             if (now - iterator.next().value > WINDOW_MS) iterator.remove()
         }
-        val key = normalizePhone(sender) + "|" + snippet
+        val key = normalizePhone(sender) + "|" + body
         if (recent.containsKey(key)) return false
         recent[key] = now
         return true
@@ -32,6 +32,4 @@ object DispatchDeduper {
         }
     }
 
-    fun snippetOf(body: String): String =
-        if (body.length > 100) body.take(100) + "..." else body
 }

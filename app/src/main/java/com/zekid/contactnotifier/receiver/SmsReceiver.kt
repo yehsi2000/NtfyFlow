@@ -38,17 +38,11 @@ class SmsReceiver : BroadcastReceiver() {
         val smsMessage = messages[0]
         val phoneNumber = smsMessage.displayOriginatingAddress
         val messageBody = messages.joinToString("") { it.displayMessageBody ?: "" }
-        val snippet = DispatchDeduper.snippetOf(messageBody)
         
         Log.d("SmsReceiver", "[DEBUG-SMS] Sender: ${phoneNumber ?: "NULL"}, Body length: ${messageBody.length}")
 
         if (phoneNumber == null) {
             Log.e("SmsReceiver", "[DEBUG-SMS] Phone number is null, cannot dispatch")
-            return
-        }
-
-        if (!DispatchDeduper.tryMark(phoneNumber, snippet)) {
-            Log.d("SmsReceiver", "[DEBUG-SMS] Duplicate of recently dispatched message, skipping")
             return
         }
 
@@ -65,11 +59,12 @@ class SmsReceiver : BroadcastReceiver() {
                 } else if (!settings.smsNotificationsEnabled) {
                     Log.w("SmsReceiver", "[DEBUG-SMS] SMS notifications are DISABLED in settings.")
                 } else {
+                    if (!DispatchDeduper.tryMark(phoneNumber, messageBody)) return@launch
                     val contactRepository = ContactRepository(context)
                     val ntfyRepository = NtfyRepository(settingsRepository)
                     val dispatcher = NotificationDispatcher(contactRepository, ntfyRepository, settingsRepository)
                     
-                    val success = dispatcher.dispatchSmsNotification(phoneNumber, snippet)
+                    val success = dispatcher.dispatchSmsNotification(phoneNumber, messageBody)
                     if (success) {
                         Log.i("SmsReceiver", "[DEBUG-SMS] Notification dispatched successfully for $phoneNumber")
                     } else {
