@@ -71,7 +71,8 @@ class MessageNotificationListener : NotificationListenerService() {
                 Log.d(TAG, "[DEBUG-NLS] Dispatching message from $senderNumber")
                 val dispatcher = NotificationDispatcher(
                     contactRepository,
-                    NtfyRepository(settingsRepository)
+                    NtfyRepository(settingsRepository),
+                    settingsRepository
                 )
                 dispatcher.dispatchSmsNotification(senderNumber, snippet)
             } catch (e: Exception) {

@@ -23,7 +23,7 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = AppSettings("https://ntfy.sh", "", true, true, false)
+            initialValue = AppSettings("https://ntfy.sh", "", true, true, false, 5, 4, 5, 5)
         )
 
     // Local editing state for text fields to avoid lag
@@ -94,6 +94,30 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
     fun updateNotificationListenerEnabled(enabled: Boolean) {
         viewModelScope.launch {
             repository.updateNotificationListenerEnabled(enabled)
+        }
+    }
+
+    fun updateCallPriority(priority: Int) {
+        viewModelScope.launch {
+            repository.updateCallPriority(priority)
+        }
+    }
+
+    fun updateSmsPriority(priority: Int) {
+        viewModelScope.launch {
+            repository.updateSmsPriority(priority)
+        }
+    }
+
+    fun updateContactCallPriority(priority: Int) {
+        viewModelScope.launch {
+            repository.updateContactCallPriority(priority)
+        }
+    }
+
+    fun updateContactSmsPriority(priority: Int) {
+        viewModelScope.launch {
+            repository.updateContactSmsPriority(priority)
         }
     }
 }

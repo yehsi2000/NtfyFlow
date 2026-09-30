@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -15,12 +16,20 @@ import java.io.IOException
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
+/**
+ * ntfy importance (1=min .. 5=urgent). Urgent (5) rings even in Do-Not-Disturb
+ * on the receiving phone's ntfy app — use it for calls / known contacts.
+ */
 data class AppSettings(
     val ntfyServerUrl: String,
     val ntfyTopic: String,
     val callNotificationsEnabled: Boolean,
     val smsNotificationsEnabled: Boolean,
-    val notificationListenerEnabled: Boolean
+    val notificationListenerEnabled: Boolean,
+    val callPriority: Int,
+    val smsPriority: Int,
+    val contactCallPriority: Int,
+    val contactSmsPriority: Int
 )
 
 class SettingsRepository(private val context: Context) {
@@ -31,6 +40,10 @@ class SettingsRepository(private val context: Context) {
         val CALL_NOTIFICATIONS_ENABLED = booleanPreferencesKey("call_notifications_enabled")
         val SMS_NOTIFICATIONS_ENABLED = booleanPreferencesKey("sms_notifications_enabled")
         val NOTIFICATION_LISTENER_ENABLED = booleanPreferencesKey("notification_listener_enabled")
+        val CALL_PRIORITY = intPreferencesKey("call_priority")
+        val SMS_PRIORITY = intPreferencesKey("sms_priority")
+        val CONTACT_CALL_PRIORITY = intPreferencesKey("contact_call_priority")
+        val CONTACT_SMS_PRIORITY = intPreferencesKey("contact_sms_priority")
     }
 
     val appSettingsFlow: Flow<AppSettings> = context.dataStore.data
@@ -47,7 +60,11 @@ class SettingsRepository(private val context: Context) {
                 ntfyTopic = preferences[PreferencesKeys.NTFY_TOPIC] ?: "",
                 callNotificationsEnabled = preferences[PreferencesKeys.CALL_NOTIFICATIONS_ENABLED] ?: true,
                 smsNotificationsEnabled = preferences[PreferencesKeys.SMS_NOTIFICATIONS_ENABLED] ?: true,
-                notificationListenerEnabled = preferences[PreferencesKeys.NOTIFICATION_LISTENER_ENABLED] ?: false
+                notificationListenerEnabled = preferences[PreferencesKeys.NOTIFICATION_LISTENER_ENABLED] ?: false,
+                callPriority = (preferences[PreferencesKeys.CALL_PRIORITY] ?: 5).coerceIn(1, 5),
+                smsPriority = (preferences[PreferencesKeys.SMS_PRIORITY] ?: 4).coerceIn(1, 5),
+                contactCallPriority = (preferences[PreferencesKeys.CONTACT_CALL_PRIORITY] ?: 5).coerceIn(1, 5),
+                contactSmsPriority = (preferences[PreferencesKeys.CONTACT_SMS_PRIORITY] ?: 5).coerceIn(1, 5)
             )
         }
 
@@ -78,6 +95,30 @@ class SettingsRepository(private val context: Context) {
     suspend fun updateNotificationListenerEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.NOTIFICATION_LISTENER_ENABLED] = enabled
+        }
+    }
+
+    suspend fun updateCallPriority(priority: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.CALL_PRIORITY] = priority.coerceIn(1, 5)
+        }
+    }
+
+    suspend fun updateSmsPriority(priority: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.SMS_PRIORITY] = priority.coerceIn(1, 5)
+        }
+    }
+
+    suspend fun updateContactCallPriority(priority: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.CONTACT_CALL_PRIORITY] = priority.coerceIn(1, 5)
+        }
+    }
+
+    suspend fun updateContactSmsPriority(priority: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.CONTACT_SMS_PRIORITY] = priority.coerceIn(1, 5)
         }
     }
 }

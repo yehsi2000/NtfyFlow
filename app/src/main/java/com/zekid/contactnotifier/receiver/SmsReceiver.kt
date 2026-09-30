@@ -67,7 +67,7 @@ class SmsReceiver : BroadcastReceiver() {
                 } else {
                     val contactRepository = ContactRepository(context)
                     val ntfyRepository = NtfyRepository(settingsRepository)
-                    val dispatcher = NotificationDispatcher(contactRepository, ntfyRepository)
+                    val dispatcher = NotificationDispatcher(contactRepository, ntfyRepository, settingsRepository)
                     
                     val success = dispatcher.dispatchSmsNotification(phoneNumber, snippet)
                     if (success) {

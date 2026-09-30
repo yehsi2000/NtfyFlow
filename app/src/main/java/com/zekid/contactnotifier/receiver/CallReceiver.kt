@@ -37,7 +37,7 @@ class CallReceiver : BroadcastReceiver() {
                             if (settings.callNotificationsEnabled) {
                                 val contactRepository = ContactRepository(context)
                                 val ntfyRepository = NtfyRepository(settingsRepository)
-                                val dispatcher = NotificationDispatcher(contactRepository, ntfyRepository)
+                                val dispatcher = NotificationDispatcher(contactRepository, ntfyRepository, settingsRepository)
                                 
                                 val success = dispatcher.dispatchCallNotification(phoneNumber)
                                 Log.d("CallReceiver", "[DEBUG-CALL] Dispatch success: $success")

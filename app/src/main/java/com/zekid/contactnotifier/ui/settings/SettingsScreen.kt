@@ -61,6 +61,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Slider
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.platform.LocalContext
 import com.google.accompanist.permissions.PermissionStatus
@@ -172,6 +173,10 @@ fun SettingsScreen(
         onCallToggle = { viewModel.updateCallNotificationsEnabled(it) },
         onSmsToggle = { viewModel.updateSmsNotificationsEnabled(it) },
         onNotificationListenerToggle = { viewModel.updateNotificationListenerEnabled(it) },
+        onCallPriorityChange = { viewModel.updateCallPriority(it) },
+        onSmsPriorityChange = { viewModel.updateSmsPriority(it) },
+        onContactCallPriorityChange = { viewModel.updateContactCallPriority(it) },
+        onContactSmsPriorityChange = { viewModel.updateContactSmsPriority(it) },
         notificationAccessGranted = notificationAccessGranted,
         onOpenNotificationAccessClick = {
             context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
@@ -204,6 +209,10 @@ fun SettingsScreenContent(
     onCallToggle: (Boolean) -> Unit,
     onSmsToggle: (Boolean) -> Unit,
     onNotificationListenerToggle: (Boolean) -> Unit,
+    onCallPriorityChange: (Int) -> Unit,
+    onSmsPriorityChange: (Int) -> Unit,
+    onContactCallPriorityChange: (Int) -> Unit,
+    onContactSmsPriorityChange: (Int) -> Unit,
     notificationAccessGranted: Boolean,
     onOpenNotificationAccessClick: () -> Unit,
     snackbarHostState: SnackbarHostState,
@@ -361,6 +370,47 @@ fun SettingsScreenContent(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large
+                ) {
+                    Column(modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)) {
+                        SettingsSectionTitle(title = "ntfy Priority", icon = Icons.Default.Notifications)
+                        Text(
+                            text = "5 (urgent) rings loudly even in Do-Not-Disturb on the receiving phone. 1=min … 5=urgent.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        PrioritySelector(
+                            title = "Call (unknown number)",
+                            value = settings.callPriority,
+                            onValueChange = onCallPriorityChange
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        PrioritySelector(
+                            title = "SMS (unknown number)",
+                            value = settings.smsPriority,
+                            onValueChange = onSmsPriorityChange
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        PrioritySelector(
+                            title = "Call (saved contact)",
+                            value = settings.contactCallPriority,
+                            onValueChange = onContactCallPriorityChange
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        PrioritySelector(
+                            title = "SMS (saved contact)",
+                            value = settings.contactSmsPriority,
+                            onValueChange = onContactSmsPriorityChange
+                        )
+                    }
+                }
                 
                 Spacer(modifier = Modifier.height(32.dp))
                 
@@ -515,6 +565,55 @@ fun SettingsSwitchItem(
     )
 }
 
+@Composable
+fun PrioritySelector(
+    title: String,
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.padding(vertical = 8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = "$value · ${priorityLabel(value)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Slider(
+            value = value.toFloat(),
+            onValueChange = { onValueChange(it.toInt().coerceIn(1, 5)) },
+            valueRange = 1f..5f,
+            steps = 3
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("min", style = MaterialTheme.typography.labelSmall)
+            Text("urgent", style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+private fun priorityLabel(priority: Int): String = when (priority.coerceIn(1, 5)) {
+    1 -> "min"
+    2 -> "low"
+    3 -> "default"
+    4 -> "high"
+    else -> "urgent"
+}
+
 @Preview(showBackground = true, device = "spec:width=411dp,height=891dp")
 @Composable
 fun SettingsScreenPreview() {
@@ -525,7 +624,11 @@ fun SettingsScreenPreview() {
                 ntfyTopic = "my_topic",
                 callNotificationsEnabled = true,
                 smsNotificationsEnabled = false,
-                notificationListenerEnabled = true
+                notificationListenerEnabled = true,
+                callPriority = 5,
+                smsPriority = 4,
+                contactCallPriority = 5,
+                contactSmsPriority = 5
             ),
             editableUrl = "https://ntfy.sh",
             editableTopic = "my_topic",
@@ -536,6 +639,10 @@ fun SettingsScreenPreview() {
             onCallToggle = {},
             onSmsToggle = {},
             onNotificationListenerToggle = {},
+            onCallPriorityChange = {},
+            onSmsPriorityChange = {},
+            onContactCallPriorityChange = {},
+            onContactSmsPriorityChange = {},
             notificationAccessGranted = false,
             onOpenNotificationAccessClick = {},
             snackbarHostState = remember { SnackbarHostState() },
